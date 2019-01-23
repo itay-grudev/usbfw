@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <string>
 #include <cstring>
+#include <unistd.h>
 
 #define LOGFILE "/var/log/usbfw.log"
 
@@ -24,18 +25,18 @@ void help();
 void usage();
 
 // Commands
-int event(char*, char*, char*, char*);
+int event( char*, char** );
 int enable(){ return 0; }
 int disable(){ return 0; }
-int logging(int){ return 0; }
-int allow(int, char*[]){ return 0; }
-int deny(int, char*[]){ return 0; }
-int limit(int, char*[]){ return 0; }
-int delete_rule(int, char*[]){ return 0; }
-int insert(int, char*[], bool){ return 0; }
+int logging( int ){ return 0; }
+int allow( int, char*[] ){ return 0; }
+int deny( int, char*[] ){ return 0; }
+int limit( int, char*[] ){ return 0; }
+int delete_rule( int, char*[] ){ return 0; }
+int insert( int, char*[], bool ){ return 0; }
 int reload(){ return 0; }
-int status(int, char*[]){ return 0; }
-int logs(int){ return 0; }
+int status( int, char*[] ){ return 0; }
+int logs( int ){ return 0; }
 int version(){ return 0; }
 
 /**
@@ -45,7 +46,7 @@ int version(){ return 0; }
  */
 bool debug = false;
 
-int main( int argc, char* argv[] ){
+int main( int argc, char* argv[], char **envp ){
 
 	// Anything less than 2 arguments is invalid
 	if( argc < 2 ){
@@ -68,11 +69,11 @@ int main( int argc, char* argv[] ){
 
 	// Event processing command
 	if( strcmp( argv[1], "-e" ) == 0 ){ // EVENT command
-		if( argc < 6 ){
+		if( argc < 3 ){
 			usage();
 			return 1;
 		}
-		return event( argv[2], argv[3], argv[4], argv[5]);
+		return event( argv[2], envp );
 	} else if( strcmp( argv[1], "help" ) == 0 ){ // HELP command
 		help();
 		return 0;
@@ -111,13 +112,27 @@ int main( int argc, char* argv[] ){
 	return 1;
 }
 
-int event( char* event, char* devpath, char* devnode, char* parent ){
+int event( char* devpath, char **envp ){
+	int counter = 0;
+	pid_t pid = fork();
+	if( pid == 0 ); // child process
+	else if( pid > 0 ) return 0; // parent process
+	else return 1; // fork failed
+
 	// Log either to stdout or to LOGFILE (in /var/log/)
 	if( debug ){
-		printf( "%s:\t%s\t%s\t%s\n", event, devpath, devnode, parent );
+		printf( "%s\n", devpath );
+		for( char **env = envp; *env != 0; ++env ){
+			char *thisEnv = *env;
+			printf( "%s\n", thisEnv );
+	 	}
 	} else {
 		FILE *logfile = fopen( LOGFILE, "a" );
-		fprintf( logfile, "%s:\t%s\t%s\t%s\n", event, devpath, devnode, parent );
+		fprintf( logfile, "%s\n", devpath );
+		for( char **env = envp; *env != 0; ++env ){
+			char *thisEnv = *env;
+			fprintf( logfile, "%s\n", thisEnv );
+	 	}
 		fclose( logfile );
 	}
 
@@ -153,7 +168,7 @@ void help(){
 					"    <DEVNODE>\t\t The device node name as defined by udev\n"
 					"    <PARENT>\t\t The device node name of the parent if the device\n"
 					"  -d Toggles debug mode. Used for debugging events. This showes how\n"
-					"     the event will be processed without deauthorizing the device.\n"
+					"     the event will be processed without authorizing the device.\n"
 					"\nExamples:\n"
 					"  # Enable / Disable the firewall\n"
 					"  usbfw enable\n"

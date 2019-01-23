@@ -1,0 +1,3 @@
+# Deauthorize USB devices by default
+SUBSYSTEM=="usb", ACTION=="add", DRIVER=="usb", ATTR{authorized}="0"
+SUBSYSTEM=="usb", ACTION=="add", DRIVER=="usb", RUN+="/home/ito/Projects/usbfw/bin/usbfw -e $sys$devpath"
